@@ -60,39 +60,37 @@ Edit Profile
 
 Settings
 
-
-
 ## 📸 Screenshots
 
 ### Landing
-![Landing](screenshots/Screenshot%202025-12-24%20110949.png)
+<img src="screenshots/Screenshot%202025-12-24%20110949.png" width="300" />
 
 ### Log In
-![Log In](screenshots/Screenshot%202025-12-24%20111019.png)
+<img src="screenshots/Screenshot%202025-12-24%20111019.png" width="300" />
 
 ### Profile Setup
-![Profile Setup](screenshots/Screenshot%202025-12-24%20111101.png)
+<img src="screenshots/Screenshot%202025-12-24%20111101.png" width="300" />
 
 ### Activity Interests
-![Activity Interests](screenshots/Screenshot%202025-12-24%20111110.png)
+<img src="screenshots/Screenshot%202025-12-24%20111110.png" width="300" />
 
 ### Find Partners
-![Find Partners](screenshots/Screenshot%202025-12-24%20111213.png)
+<img src="screenshots/Screenshot%202025-12-24%20111213.png" width="300" />
 
 ### Profile View (Public)
-![Profile View](screenshots/Screenshot%202025-12-24%20111224.png)
+<img src="screenshots/Screenshot%202025-12-24%20111224.png" width="300" />
 
 ### Your Profile
-![Your Profile](screenshots/Screenshot%202025-12-24%20111244.png)
+<img src="screenshots/Screenshot%202025-12-24%20111244.png" width="300" />
 
 ### Settings
-![Settings](screenshots/Screenshot%202025-12-24%20111424.png)
+<img src="screenshots/Screenshot%202025-12-24%20111424.png" width="300" />
 
 ### Messages
-![Messages](screenshots/Screenshot%202025-12-24%20111443.png)
+<img src="screenshots/Screenshot%202025-12-24%20111443.png" width="300" />
 
 ### Chat View
-![Chat View](screenshots/Screenshot%202025-12-24%20111542.png)
+<img src="screenshots/Screenshot%202025-12-24%20111542.png" width="300" />
 
 ### Chat (Active)
-![Chat Active](screenshots/Screenshot%202025-12-24%20111610.png)
+<img src="screenshots/Screenshot%202025-12-24%20111610.png" width="300" />
