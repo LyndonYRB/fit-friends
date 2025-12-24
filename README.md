@@ -17,11 +17,12 @@ This repository currently contains the **UI foundation and page structure**.
 
 ## 📦 Install & Setup
 
-```bash
 git clone https://github.com/LyndonYRB/fit-friends.git
 cd fit-friends
 npm install
 npm run dev
+
+---
 
 ##  📦 Packages Installed
 
