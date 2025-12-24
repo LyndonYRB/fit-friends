@@ -63,34 +63,34 @@ Settings
 ## 📸 Screenshots
 
 ### Landing
-<img src="screenshots/Screenshot%202025-12-24%20110949.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20110949.png" width="150" />
 
 ### Log In
-<img src="screenshots/Screenshot%202025-12-24%20111019.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111019.png" width="150" />
 
 ### Profile Setup
-<img src="screenshots/Screenshot%202025-12-24%20111101.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111101.png" width="150" />
 
 ### Activity Interests
-<img src="screenshots/Screenshot%202025-12-24%20111110.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111110.png" width="150" />
 
 ### Find Partners
-<img src="screenshots/Screenshot%202025-12-24%20111213.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111213.png" width="150" />
 
 ### Profile View (Public)
-<img src="screenshots/Screenshot%202025-12-24%20111224.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111224.png" width="150" />
 
 ### Your Profile
-<img src="screenshots/Screenshot%202025-12-24%20111244.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111244.png" width="150" />
 
 ### Settings
-<img src="screenshots/Screenshot%202025-12-24%20111424.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111424.png" width="150" />
 
 ### Messages
-<img src="screenshots/Screenshot%202025-12-24%20111443.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111443.png" width="150" />
 
 ### Chat View
-<img src="screenshots/Screenshot%202025-12-24%20111542.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111542.png" width="150" />
 
 ### Chat (Active)
-<img src="screenshots/Screenshot%202025-12-24%20111610.png" width="300" />
+<img src="screenshots/Screenshot%202025-12-24%20111610.png" width="150" />
