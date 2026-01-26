@@ -1,6 +1,7 @@
 // src/pages/PreferenceSetup.jsx
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAppState } from "../state/AppState";
 import {
   ArrowLeft,
   ChevronDown,
@@ -43,15 +44,22 @@ function Pill({ label, active, onClick }) {
 
 export default function PreferenceSetup() {
   const navigate = useNavigate();
+  const { prefs, updatePrefs } = useAppState();
 
-  // UI-only
-  const [preferredActivities, setPreferredActivities] = useState(["Gym"]);
-  const [genderPref, setGenderPref] = useState("Any");
-  const [ageMin, setAgeMin] = useState("18");
-  const [ageMax, setAgeMax] = useState("35");
-  const [radius, setRadius] = useState("10"); // miles
-  const [availabilityFilterOn, setAvailabilityFilterOn] = useState(false);
-  const [availabilityPref, setAvailabilityPref] = useState("Evening");
+  // Prefill from AppState (persisted via localStorage)
+  const [preferredActivities, setPreferredActivities] = useState(
+    prefs?.preferredActivities ?? ["Gym"]
+  );
+  const [genderPref, setGenderPref] = useState(prefs?.genderPref ?? "Any");
+  const [ageMin, setAgeMin] = useState(prefs?.ageMin ?? "18");
+  const [ageMax, setAgeMax] = useState(prefs?.ageMax ?? "35");
+  const [radius, setRadius] = useState(prefs?.radius ?? "10"); // miles
+  const [availabilityFilterOn, setAvailabilityFilterOn] = useState(
+    prefs?.availabilityFilterOn ?? false
+  );
+  const [availabilityPref, setAvailabilityPref] = useState(
+    prefs?.availabilityPref ?? "Evening"
+  );
   const [error, setError] = useState("");
 
   const toggleActivity = (label) => {
@@ -74,7 +82,16 @@ export default function PreferenceSetup() {
     if (ageMinNum > ageMaxNum) return setError("Minimum age can't exceed maximum age.");
     if (!radius.trim() || Number(radius) < 1) return setError("Enter a valid distance.");
 
-    // UI-only: proceed to discover
+    updatePrefs({
+      preferredActivities,
+      genderPref,
+      ageMin,
+      ageMax,
+      radius,
+      availabilityFilterOn,
+      availabilityPref,
+    });
+
     navigate("/discover");
   };
 
@@ -85,7 +102,7 @@ export default function PreferenceSetup() {
         <header className="flex items-center justify-between border-b border-white/10 px-4 py-4">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/discover")}
             className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/5"
             aria-label="Go back"
           >
@@ -136,25 +153,21 @@ export default function PreferenceSetup() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <input
-                  type="number"
-                  value={ageMin}
-                  onChange={(e) => setAgeMin(e.target.value)}
-                  placeholder="Min"
-                  className="h-14 w-full rounded-full border border-white/10 bg-[#101c22] px-4 text-base font-semibold text-white placeholder:text-gray-600 outline-none focus:border-[#13a4ec] focus:ring-2 focus:ring-[#13a4ec]/30"
-                />
-              </div>
+              <input
+                type="number"
+                value={ageMin}
+                onChange={(e) => setAgeMin(e.target.value)}
+                placeholder="Min"
+                className="h-14 w-full rounded-full border border-white/10 bg-[#101c22] px-4 text-base font-semibold text-white placeholder:text-gray-600 outline-none focus:border-[#13a4ec] focus:ring-2 focus:ring-[#13a4ec]/30"
+              />
 
-              <div className="relative">
-                <input
-                  type="number"
-                  value={ageMax}
-                  onChange={(e) => setAgeMax(e.target.value)}
-                  placeholder="Max"
-                  className="h-14 w-full rounded-full border border-white/10 bg-[#101c22] px-4 text-base font-semibold text-white placeholder:text-gray-600 outline-none focus:border-[#13a4ec] focus:ring-2 focus:ring-[#13a4ec]/30"
-                />
-              </div>
+              <input
+                type="number"
+                value={ageMax}
+                onChange={(e) => setAgeMax(e.target.value)}
+                placeholder="Max"
+                className="h-14 w-full rounded-full border border-white/10 bg-[#101c22] px-4 text-base font-semibold text-white placeholder:text-gray-600 outline-none focus:border-[#13a4ec] focus:ring-2 focus:ring-[#13a4ec]/30"
+              />
             </div>
           </section>
 
@@ -246,9 +259,7 @@ export default function PreferenceSetup() {
                 <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
               </div>
             ) : (
-              <div className="text-xs text-gray-500">
-                Off — we won’t filter by availability.
-              </div>
+              <div className="text-xs text-gray-500">Off — we won’t filter by availability.</div>
             )}
           </section>
         </main>

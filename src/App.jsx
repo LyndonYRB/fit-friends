@@ -32,7 +32,8 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/chat/:id" element={<Chat />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<div className="p-6 text-white">404 - Route not found</div>} />
+
       </Routes>
     </BrowserRouter>
   );

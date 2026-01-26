@@ -246,7 +246,7 @@ export default function ProfileSetup() {
         <header className="flex items-center justify-between border-b border-white/10 px-4 py-4">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/profile")}
             className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/5"
             aria-label="Go back"
           >
