@@ -1,7 +1,7 @@
 # FitFriends 💪
 
-FitFriends is a React-based fitness and social web app UI built with **Vite + React**.  
-This repository currently contains the **UI foundation and page structure**.
+FitFriends is a React-based fitness + social web app UI built with **Vite + React**.
+This repo currently contains the **UI foundation**, **page routing**, and an interactive **Discover (Find Partners)** experience (filters + swipe).
 
 ---
 
@@ -11,12 +11,13 @@ This repository currently contains the **UI foundation and page structure**.
 - JavaScript (ES6+)
 - React Router
 - Lucide Icons
-- CSS
+- Tailwind CSS
 
 ---
 
 ## 📦 Install & Setup
 
+```bash
 git clone https://github.com/LyndonYRB/fit-friends.git
 cd fit-friends
 npm install
@@ -60,6 +61,8 @@ Edit Profile
 
 Settings
 
+Discover / Find Partners
+
 ## 📸 Screenshots
 
 ### Landing
@@ -94,3 +97,15 @@ Settings
 
 ### Chat (Active)
 <img src="screenshots/Screenshot%202025-12-24%20111610.png" width="150" />
+
+### Discover Page
+<img src="screenshots/Screenshot%202026-02-02%20153220.png" width="150" />
+
+### Discover Page(Sports Filter)
+<img src="screenshots/Screenshot%202026-02-02%20153247.png" width="150" />
+
+### Discover Page(Skill Level Filter)
+<img src="screenshots/Screenshot%202026-02-02%20153304.png" width="150" />
+
+### Discover Page(Distance Filter)
+<img src="screenshots/Screenshot%202026-02-02%20153345.png" width="150" />
