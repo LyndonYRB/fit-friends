@@ -107,3 +107,5 @@ Discover / Find Partners
 ### Find partners(Distance Filter)
 <img src="screenshots/Screenshot%202026-02-02%20153345.png" width="150" />
 
+### Find partners Swipe (GIF)
+<img src="screenshots/swipe.gif" width="250" />
