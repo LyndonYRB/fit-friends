@@ -108,4 +108,4 @@ Discover / Find Partners
 <img src="screenshots/Screenshot%202026-02-02%20153345.png" width="150" />
 
 ### Find partners Swipe (GIF)
-<img src="screenshots/swipe.gif" width="150" />
+<img src="screenshots/swipe.gif" width="280" />
