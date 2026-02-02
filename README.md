@@ -98,15 +98,12 @@ Discover / Find Partners
 ### Chat (Active)
 <img src="screenshots/Screenshot%202025-12-24%20111610.png" width="150" />
 
-### Discover Page
-<img src="screenshots/Screenshot%202026-02-02%20153220.png" width="150" />
-
-### Discover Page(Sports Filter)
+### Find partners(Sports Filter)
 <img src="screenshots/Screenshot%202026-02-02%20153247.png" width="150" />
 
-### Discover Page(Skill Level Filter)
+### Find partners(Skill Level Filter)
 <img src="screenshots/Screenshot%202026-02-02%20153304.png" width="150" />
 
-### Discover Page(Distance Filter)
+### Find partners(Distance Filter)
 <img src="screenshots/Screenshot%202026-02-02%20153345.png" width="150" />
 
