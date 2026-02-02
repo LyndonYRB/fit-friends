@@ -22,11 +22,11 @@ git clone https://github.com/LyndonYRB/fit-friends.git
 cd fit-friends
 npm install
 npm run dev
-
+```
 ---
 
 ##  📦 Packages Installed
-
+```bash
 # Create Vite + React app
 npm create vite@latest
 
@@ -35,7 +35,7 @@ npm install react-router-dom
 
 # Lucide Icons
 npm install lucide-react
-
+```
 
 ## 📁 Pages Implemented (UI)
 
@@ -109,3 +109,4 @@ Discover / Find Partners
 
 ### Discover Page(Distance Filter)
 <img src="screenshots/Screenshot%202026-02-02%20153345.png" width="150" />
+
