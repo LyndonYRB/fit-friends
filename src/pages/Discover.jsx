@@ -1,6 +1,7 @@
 // src/pages/Discover.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MOCK_USERS } from "../data/mockUsers.jsx";
 import { useAppState } from "../state/AppState";
 import {
   SlidersHorizontal,
@@ -14,78 +15,8 @@ import {
   Star,
 } from "lucide-react";
 
-/* -------------------- Mock cards -------------------- */
-/* NOTE:
-   - activity must match ACTIVITIES exactly
-   - skill must be Beginner/Intermediate/Advanced
-   - miles is number used by Distance filter
-*/
-const cards = [
-  {
-    name: "Alex, 28",
-    subtitle: "Intermediate Runner",
-    distance: "5km away",
-    activity: "Running",
-    skill: "Intermediate",
-    miles: 3,
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAtx4AMnjcmOi9TONvRGFepx3zp1rKq8XCKv-P7dRe56gdgUo4BHuIVg2JNsaEZ9TFM-MvC2zEuA3dlPk8nqnTu4YFkO22yypzSGB2yJv4A85QPsPFG-em1lja28_ZQwdyq-MPCHyqpYaTQP-2CtAKkQuP8oPRklbqiXzg_Qb3yIMOq6B1lLhPVHfv4h2VzjnY4t-I4bn1buZp5PN_MNRi9YqsJKlMK88Iqm8czNZ1C_ljlAJqLWdbj_CPYV62lx2pKb2pLEHasly6m",
-  },
-  {
-    name: "Sophia, 25",
-    subtitle: "Advanced Dancer",
-    distance: "10km away",
-    activity: "Dance",
-    skill: "Advanced",
-    miles: 9,
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCJY91asyYLfhpDr89J9P6ljRB0YcE4tCuPcWKfM6HEHfli9RvDI2rQcjWSIAcve5-HSbCLDRLyrvYkK3CpHjT5Fga2cq0VnV3G1HHTYkrvl-icx4FRI1uqZpGNQt-ApWcu_-TP6Q_AakgIPI6a3K6uHl_PO44BBWPAxVySzTI2luHuouWViAqDzAehUQijojKvK7b5OgABOu3rbi1J2WRKKGS--PyrI8ho3RBaxRQTqxBSnnG-CeTCU5sX6A4_Twn2nHApD0DJEn6u",
-  },
-  {
-    name: "Ethan, 31",
-    subtitle: "Beginner Weightlifter",
-    distance: "2km away",
-    activity: "Gym",
-    skill: "Beginner",
-    miles: 2,
-    img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBk4TjRKEhM45QPM48QMXjVwYvZslZ3HZUzRj4oRA0YEPDus4p2JKc1r2FBPTYRla_DXKk-YnFLDE0W1ZUPtZoPDVB7Z5MY1OgZQH1SAsv4gZTZdIRAU0dBX0vK1hVRY-a4cVX1WNT_pQdUsHSfJgwMMH_iWQBPbJdM_KSFkn9SgNRtTBPZxVO86Ndb-VJSINTMNASZX0uQaiVWrgdv6gMQzmEE6ar0HsISmwYKK2m2Wsu3FvXfN4VDfvVTqKzOiC_dLhXOq5N7LTFe",
-  },
-  {
-    name: "Maya, 27",
-    subtitle: "Beginner Pilates",
-    distance: "3km away",
-    activity: "Pilates",
-    skill: "Beginner",
-    miles: 4,
-    img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Jordan, 29",
-    subtitle: "Intermediate Gym",
-    distance: "7km away",
-    activity: "Gym",
-    skill: "Intermediate",
-    miles: 7,
-    img: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Kai, 24",
-    subtitle: "Advanced Boxing",
-    distance: "12km away",
-    activity: "Boxing",
-    skill: "Advanced",
-    miles: 12,
-    img: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Nina, 32",
-    subtitle: "Intermediate Swimming",
-    distance: "1km away",
-    activity: "Swimming",
-    skill: "Intermediate",
-    miles: 1,
-    img: "https://images.unsplash.com/photo-1524503033411-f7a2fe8c7b1b?auto=format&fit=crop&w=900&q=80",
-  },
-];
 
+/* -------------------- Activities -------------------- */
 const ACTIVITIES = [
   "Gym",
   "Pilates",
@@ -98,7 +29,10 @@ const ACTIVITIES = [
   "Boxing",
 ];
 
+/* -------------------- Skills -------------------- */
 const SKILLS = ["Any", "Beginner", "Intermediate", "Advanced"];
+
+
 
 /* -------------------- Filter pill -------------------- */
 function FilterPill({ label, value, active, onClick }) {
@@ -124,7 +58,7 @@ function FilterPill({ label, value, active, onClick }) {
 /* ==================== PAGE ==================== */
 export default function Discover() {
   const navigate = useNavigate();
-  const { prefs, updatePrefs } = useAppState();
+  const { prefs, updatePrefs, blockedUserIds } = useAppState();
 
   const [open, setOpen] = useState(null); // "sport" | "skill" | "distance" | null
   const filterRef = useRef(null);
@@ -183,37 +117,49 @@ export default function Discover() {
       ? preferredActivities
       : ACTIVITIES;
 
-  const filteredResults = useMemo(() => {
-    return cards.filter((c) => {
-      const activityOk = selectedActivities.includes(c.activity);
-      const skillOk = skillPref === "Any" || c.skill === skillPref;
-      const distanceOk = Number(c.miles) <= Number(radius);
-      return activityOk && skillOk && distanceOk;
-    });
-  }, [selectedActivities, skillPref, radius]);
+    const filteredResults = useMemo(() => {
+      return MOCK_USERS
+        .map((u) => ({ ...u, __userId: u.id }))
+        .filter((u) => {
+          const isBlocked = (blockedUserIds || []).includes(u.__userId);
+          if (isBlocked) return false;
 
-  /* Deck state = filteredResults (so swipe can remove cards) */
-  const [deck, setDeck] = useState(filteredResults);
+          const activityOk = selectedActivities.includes(u.activity || u.interests?.[0]);
+          const skillOk = skillPref === "Any" || u.skill === skillPref;
 
-  useEffect(() => {
-    setDeck(filteredResults);
-    setDrag({ x: 0, y: 0, active: false });
+          // use miles from mockUsers (we included it)
+          const distanceOk = Number(u.miles ?? 9999) <= Number(radius);
+
+          return activityOk && skillOk && distanceOk;
+        });
+    }, [selectedActivities, skillPref, radius, blockedUserIds]);
+
+
+
+
+/* Deck state = filteredResults (so swipe can remove cards) */
+const [deck, setDeck] = useState(filteredResults);
+
+useEffect(() => {
+  setDeck(filteredResults);
+  setDrag({ x: 0, y: 0, active: false });
+  setSwipeOut(null);
+}, [filteredResults]);
+
+const topCard = deck.length ? deck[0] : null;
+
+/* NOW define commitSwipe AFTER setDeck exists */
+const commitSwipe = (dir) => {
+  if (!deck.length) return;
+  setSwipeOut(dir);
+
+  window.setTimeout(() => {
+    setDeck((prev) => prev.slice(1));
     setSwipeOut(null);
-  }, [filteredResults]);
+    setDrag({ x: 0, y: 0, active: false });
+  }, 220);
+};
 
-  const topCard = deck.length ? deck[0] : null;
-
-  const commitSwipe = (dir) => {
-    if (!deck.length) return;
-    setSwipeOut(dir);
-
-    // let the CSS transition play, then remove the card
-    window.setTimeout(() => {
-      setDeck((prev) => prev.slice(1));
-      setSwipeOut(null);
-      setDrag({ x: 0, y: 0, active: false });
-    }, 220);
-  };
 
   const onPointerDownTop = (e) => {
     if (!topCard) return;
@@ -397,146 +343,146 @@ export default function Discover() {
         </header>
 
         {/* ---------------- Main ---------------- */}
-        <main className="flex-1 px-6 pt-4 pb-24">
-          <div className="relative h-[60vh]">
-            {deck.length === 0 ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
-                <div className="text-lg font-extrabold text-white">
-                  No matches
-                </div>
-                <div className="mt-2 text-sm text-slate-300">
-                  Try widening distance, changing skill level, or picking
-                  different sports.
-                </div>
+<main className="flex-1 px-6 pt-4 pb-24">
+  <div className="relative h-[60vh]">
+    {deck.length === 0 ? (
+      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+        <div className="text-lg font-extrabold text-white">No matches</div>
+        <div className="mt-2 text-sm text-slate-300">
+          Try widening distance, changing skill level, or picking different
+          sports.
+        </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    updatePrefs({
-                      preferredActivities: ["Gym"],
-                      skillPref: "Any",
-                      radius: "10",
-                    });
-                    setOpen(null);
-                  }}
-                  className="mt-5 rounded-full bg-[#13a4ec] px-5 py-3 text-sm font-extrabold text-white hover:opacity-90"
-                >
-                  Reset filters
-                </button>
+        <button
+          type="button"
+          onClick={() => {
+            updatePrefs({
+              preferredActivities: ["Gym"],
+              skillPref: "Any",
+              radius: "10",
+            });
+            setOpen(null);
+          }}
+          className="mt-5 rounded-full bg-[#13a4ec] px-5 py-3 text-sm font-extrabold text-white hover:opacity-90"
+        >
+          Reset filters
+        </button>
+      </div>
+    ) : (
+      stack
+        .map((u, i) => {
+          const isTop = i === 0;
+
+          const zIndex = 30 - i * 10;
+          const translateY = baseY[i] || 0;
+          const scale = baseScale[i] || 1;
+          const rot = baseRot[i] || 0;
+
+          const transform = isTop
+            ? topTransform()
+            : `translate3d(0px, ${translateY}px, 0) rotate(${rot}deg) scale(${scale})`;
+
+          const transition = isTop
+            ? drag.active
+              ? "none"
+              : "transform 220ms ease"
+            : "transform 220ms ease";
+
+          return (
+            <div
+              key={u.id}
+              onClick={() => {
+                if (!isTop) return;
+                navigate(`/profile-view/${u.id}`, { state: { user: u } });
+              }}
+              onPointerDown={isTop ? onPointerDownTop : undefined}
+              onPointerMove={isTop ? onPointerMoveTop : undefined}
+              onPointerUp={isTop ? onPointerUpTop : undefined}
+              onPointerCancel={isTop ? onPointerUpTop : undefined}
+              className={[
+                "absolute inset-0 flex flex-col overflow-hidden rounded-2xl bg-slate-800 shadow-lg",
+                isTop ? "cursor-grab active:cursor-grabbing touch-none" : "",
+                isTop
+                  ? "transition-transform duration-300 ease-in-out hover:-translate-y-2 hover:rotate-1"
+                  : "",
+              ].join(" ")}
+              style={{
+                zIndex,
+                transform,
+                transition,
+              }}
+            >
+              {/* TOP IMAGE */}
+              <div className="relative h-3/5 w-full overflow-hidden">
+                <img
+                  src={u.photos?.[0]}
+                  alt={u.name}
+                  className="h-full w-full object-cover object-center"
+                  draggable={false}
+                />
+                {/* subtle vignette like your screenshot */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20" />
               </div>
-            ) : (
-              stack
-                .map((c, i) => {
-                  const isTop = i === 0;
 
-                  const zIndex = 30 - i * 10;
-                  const translateY = baseY[i] || 0;
-                  const scale = baseScale[i] || 1;
-                  const rot = baseRot[i] || 0;
+              {/* BOTTOM INFO PANEL */}
+              <div className="flex flex-1 flex-col justify-between bg-[#1b2b3a] p-5">
+                <div>
+                  <h2 className="text-4xl font-extrabold text-white leading-none">
+                    {u.name}
+                    {u.age ? `, ${u.age}` : ""}
+                  </h2>
+                  <p className="mt-2 text-lg font-semibold text-slate-400">
+                    {u.subtitle}
+                  </p>
+                </div>
 
-                  const transform = isTop
-                    ? topTransform()
-                    : `translate3d(0px, ${translateY}px, 0) rotate(${rot}deg) scale(${scale})`;
+                <div className="flex items-center gap-2 text-slate-400">
+                  <MapPin className="h-5 w-5" />
+                  <span className="text-lg">{u.distance}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })
+        // render bottom first, top last
+        .reverse()
+    )}
+  </div>
 
-                  const transition = isTop
-                    ? drag.active
-                      ? "none"
-                      : "transform 220ms ease"
-                    : "transform 220ms ease";
+  {/* Actions */}
+  <div className="mt-6 flex justify-center gap-6">
+    <button
+      type="button"
+      onClick={() => commitSwipe("left")}
+      className="h-16 w-16 rounded-full bg-slate-700 text-red-400"
+      aria-label="Pass"
+      disabled={!deck.length}
+    >
+      <X className="mx-auto h-9 w-9" />
+    </button>
 
-                  return (
-                    <div
-                      key={c.name}
-                      onClick={() => {
-                        if (!isTop) return;
-                        navigate("/profile-view");
-                      }}
-                      onPointerDown={isTop ? onPointerDownTop : undefined}
-                      onPointerMove={isTop ? onPointerMoveTop : undefined}
-                      onPointerUp={isTop ? onPointerUpTop : undefined}
-                      onPointerCancel={isTop ? onPointerUpTop : undefined}
-                      className={[
-                        "absolute inset-0 flex flex-col overflow-hidden rounded-2xl bg-slate-800 shadow-lg"
-,
-                        isTop ? "cursor-grab active:cursor-grabbing touch-none" : "",
-                        isTop && c.hover
-                          ? "transition-transform duration-300 ease-in-out hover:-translate-y-2 hover:rotate-1"
-                          : "",
-                      ].join(" ")}
-                      style={{
-                        zIndex,
-                        transform,
-                        transition,
-                      }}
-                    >
-                     {/* TOP IMAGE */}
-                  <div className="relative h-3/5 w-full overflow-hidden">
-                  <img
-                    src={c.img}
-                    alt={c.name}
-                    className="h-full w-full object-cover object-center"
-                    draggable={false}
-                  />
-                  {/* subtle vignette like your screenshot */}
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20" />
-                  </div>
+    <button
+      type="button"
+      onClick={() => commitSwipe("right")}
+      className="h-20 w-20 rounded-full bg-[#13a4ec] text-white"
+      aria-label="Like"
+      disabled={!deck.length}
+    >
+      <Heart className="mx-auto h-10 w-10 fill-white" />
+    </button>
 
-                  {/* BOTTOM INFO PANEL */}
-                  <div className="flex flex-1 flex-col justify-between bg-[#1b2b3a] p-5">
-                  <div>
-                    <h2 className="text-4xl font-extrabold text-white leading-none">
-                      {c.name}
-                    </h2>
-                    <p className="mt-2 text-lg font-semibold text-slate-400">{c.subtitle}</p>
-                  </div>
+    <button
+      type="button"
+      onClick={() => commitSwipe("up")}
+      className="h-16 w-16 rounded-full bg-slate-700 text-yellow-400"
+      aria-label="Super like"
+      disabled={!deck.length}
+    >
+      <Star className="mx-auto h-9 w-9" />
+    </button>
+  </div>
+</main>
 
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <MapPin className="h-5 w-5" />
-                    <span className="text-lg">{c.distance}</span>
-                  </div>
-                  </div>
-
-                    </div>
-                  );
-                })
-                // render bottom first, top last
-                .reverse()
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="mt-6 flex justify-center gap-6">
-            <button
-              type="button"
-              onClick={() => commitSwipe("left")}
-              className="h-16 w-16 rounded-full bg-slate-700 text-red-400"
-              aria-label="Pass"
-              disabled={!deck.length}
-            >
-              <X className="mx-auto h-9 w-9" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => commitSwipe("right")}
-              className="h-20 w-20 rounded-full bg-[#13a4ec] text-white"
-              aria-label="Like"
-              disabled={!deck.length}
-            >
-              <Heart className="mx-auto h-10 w-10 fill-white" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => commitSwipe("up")}
-              className="h-16 w-16 rounded-full bg-slate-700 text-yellow-400"
-              aria-label="Super like"
-              disabled={!deck.length}
-            >
-              <Star className="mx-auto h-9 w-9" />
-            </button>
-          </div>
-        </main>
 
         {/* ---------------- Bottom nav ---------------- */}
         <nav className="sticky bottom-0 border-t border-slate-700/80 bg-[#101c22]/80 backdrop-blur-sm">

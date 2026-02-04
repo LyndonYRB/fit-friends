@@ -1,46 +1,73 @@
-//Messages list page
-// src/pages/Messages.jsx
+// Messages list page
+// src/pages/MessagesList.jsx
 import { Link } from "react-router-dom";
 import { Compass, MessageCircle, User, Search, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
+import { useAppState } from "../state/AppState.jsx";
 
-const threads = [
-  {
-    id: "alex",
-    name: "Alex",
-    subtitle: "Intermediate Runner",
-    lastMessage: "Down for a run tomorrow morning?",
-    time: "2m",
-    unread: 2,
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAtx4AMnjcmOi9TONvRGFepx3zp1rKq8XCKv-P7dRe56gdgUo4BHuIVg2JNsaEZ9TFM-MvC2zEuA3dlPk8nqnTu4YFkO22yypzSGB2yJv4A85QPsPFG-em1lja28_ZQwdyq-MPCHyqpYaTQP-2CtAKkQuP8oPRklbqiXzg_Qb3yIMOq6B1lLhPVHfv4h2VzjnY4t-I4bn1buZp5PN_MNRi9YqsJKlMK88Iqm8czNZ1C_ljlAJqLWdbj_CPYV62lx2pKb2pLEHasly6m",
-  },
-  {
-    id: "sophia",
-    name: "Sophia",
-    subtitle: "Advanced Yoga",
-    lastMessage: "I usually go evenings. What days work for you?",
-    time: "1h",
-    unread: 0,
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCJY91asyYLfhpDr89J9P6ljRB0YcE4tCuPcWKfM6HEHfli9RvDI2rQcjWSIAcve5-HSbCLDRLyrvYkK3CpHjT5Fga2cq0VnV3G1HHTYkrvl-icx4FRI1uqZpGNQt-ApWcu_-TP6Q_AakgIPI6a3K6uHl_PO44BBWPAxVySzTI2luHuouWViAqDzAehUQijojKvK7b5OgABOu3rbi1J2WRKKGS--PyrI8ho3RBaxRQTqxBSnnG-CeTCU5sX6A4_Twn2nHApD0DJEn6u",
-  },
-  {
-    id: "ethan",
-    name: "Ethan",
-    subtitle: "Beginner Weightlifter",
-    lastMessage: "Leg day today 💀 wanna train?",
-    time: "Yesterday",
-    unread: 0,
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBk4TjRKEhM45QPM48QMXjVwYvZslZ3HZUzRj4oRA0YEPDus4p2JKc1r2FBPTYRla_DXKk-YnFLDE0W1ZUPtZoPDVB7Z5MY1OgZQH1SAsv4gZTZdIRAU0dBX0vK1hVRY-a4cVX1WNT_pQdUsHSfJgwMMH_iWQBPbJdM_KSFkn9SgNRtTBPZxVO86Ndb-VJSINTMNASZX0uQaiVWrgdv6gMQzmEE6ar0HsISmwYKK2m2Wsu3FvXfN4VDfvVTqKzOiC_dLhXOq5N7LTFe",
-  },
-];
+/* =========================================================
+   TIME LABEL HELPER (simple + readable)
+========================================================= */
 
-export default function Messages() {
+function formatRelativeTime(iso) {
+  if (!iso) return "";
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "";
+
+  const now = new Date();
+  const diffMs = now - t;
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return "Now";
+  if (diffMin < 60) return `${diffMin}m`;
+
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay === 1) return "Yesterday";
+  return `${diffDay}d`;
+}
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+export default function MessagesList() {
+  const { matches, conversations, blockedUserIds } = useAppState();
+
+  const threads = useMemo(() => {
+    const convoByUserId = new Map((conversations || []).map((c) => [c.userId, c]));
+
+    const safeMatches = matches || [];
+    const blocked = blockedUserIds || [];
+
+    return safeMatches
+      .filter((m) => !blocked.includes(m.userId))
+      .map((m) => {
+        const convo = convoByUserId.get(m.userId);
+        const updatedAt = convo?.updatedAt || m.updatedAt || null;
+
+        return {
+          id: m.userId,
+          name: m.name,
+          subtitle: m.subtitle,
+          lastMessage: m.lastMessage || "Say hi 👋",
+          time: formatRelativeTime(updatedAt),
+          unread: m.unreadCount || 0,
+          avatar: m.avatar,
+          updatedAtRaw: updatedAt ? new Date(updatedAt).getTime() : 0,
+        };
+      })
+      .sort((a, b) => b.updatedAtRaw - a.updatedAtRaw);
+  }, [matches, conversations, blockedUserIds]);
+
   return (
     <div className="min-h-screen font-[Lexend] bg-[#101c22] text-slate-200">
       <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col">
-        {/* Header */}
+        {/* =====================================================
+           HEADER
+        ====================================================== */}
         <header className="sticky top-0 z-10 border-b border-white/10 bg-[#101c22]/80 p-4 backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-white">Messages</h1>
@@ -60,54 +87,77 @@ export default function Messages() {
           </div>
         </header>
 
-        {/* List */}
+        {/* =====================================================
+           LIST
+        ====================================================== */}
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24">
           <div className="space-y-3">
-            {threads.map((t) => (
-              <Link
-                key={t.id}
-                to={`/chat/${t.id}`}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 hover:bg-white/10"
-              >
-                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-white/5">
-                  <img src={t.avatar} alt={t.name} className="h-full w-full object-cover" />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="truncate text-sm font-extrabold text-white">
-                      {t.name}
-                    </div>
-                    <div className="shrink-0 text-xs font-semibold text-slate-400">
-                      {t.time}
-                    </div>
+            {threads.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                No chats yet. Go to Discover and Connect with someone.
+              </div>
+            ) : (
+              threads.map((t) => (
+                <Link
+                  key={t.id}
+                  to={`/chat/${t.id}`}
+                  state={{
+                    user: {
+                      id: t.id,
+                      name: t.name,
+                      subtitle: t.subtitle,
+                      avatar: t.avatar,
+                    },
+                  }}
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 hover:bg-white/10"
+                >
+                  <div className="h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-white/5">
+                    <img
+                      src={t.avatar || "https://via.placeholder.com/96"}
+                      alt={t.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
                   </div>
 
-                  <div className="mt-0.5 truncate text-xs font-semibold text-slate-400">
-                    {t.subtitle}
-                  </div>
-
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <div className="truncate text-sm text-slate-300">
-                      {t.lastMessage}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="truncate text-sm font-extrabold text-white">
+                        {t.name}
+                      </div>
+                      <div className="shrink-0 text-xs font-semibold text-slate-400">
+                        {t.time}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {t.unread > 0 ? (
-                        <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-[#13a4ec] px-2 text-xs font-extrabold text-white">
-                          {t.unread}
-                        </span>
-                      ) : null}
-                      <ChevronRight className="h-5 w-5 text-slate-500" />
+                    <div className="mt-0.5 truncate text-xs font-semibold text-slate-400">
+                      {t.subtitle}
+                    </div>
+
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <div className="truncate text-sm text-slate-300">
+                        {t.lastMessage}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {t.unread > 0 ? (
+                          <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-[#13a4ec] px-2 text-xs font-extrabold text-white">
+                            {t.unread}
+                          </span>
+                        ) : null}
+                        <ChevronRight className="h-5 w-5 text-slate-500" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))
+            )}
           </div>
         </main>
 
-        {/* Bottom nav */}
+        {/* =====================================================
+           BOTTOM NAV
+        ====================================================== */}
         <nav className="sticky bottom-0 border-t border-slate-700/80 bg-[#101c22]/80 backdrop-blur-sm">
           <div className="grid grid-cols-3 gap-2 px-4 py-2">
             <Link

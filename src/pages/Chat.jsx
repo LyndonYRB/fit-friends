@@ -1,54 +1,125 @@
-//Chat screen
+// Chat screen
 // src/pages/Chat.jsx
 import { useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, ShieldAlert, Send } from "lucide-react";
+import { useAppState } from "../state/AppState.jsx";
 
-const mockUsers = {
-  alex: {
-    name: "Alex",
-    subtitle: "Intermediate Runner",
+/* =========================================================
+   FALLBACK PEER
+   - Used when arriving directly via /chat/:id with no state
+========================================================= */
+
+function buildFallbackPeer(id) {
+  return {
+    id,
+    name: "Athlete",
+    subtitle: "Training Partner",
     avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAtx4AMnjcmOi9TONvRGFepx3zp1rKq8XCKv-P7dRe56gdgUo4BHuIVg2JNsaEZ9TFM-MvC2zEuA3dlPk8nqnTu4YFkO22yypzSGB2yJv4A85QPsPFG-em1lja28_ZQwdyq-MPCHyqpYaTQP-2CtAKkQuP8oPRklbqiXzg_Qb3yIMOq6B1lLhPVHfv4h2VzjnY4t-I4bn1buZp5PN_MNRi9YqsJKlMK88Iqm8czNZ1C_ljlAJqLWdbj_CPYV62lx2pKb2pLEHasly6m",
-  },
-  sophia: {
-    name: "Sophia",
-    subtitle: "Advanced Yoga",
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCJY91asyYLfhpDr89J9P6ljRB0YcE4tCuPcWKfM6HEHfli9RvDI2rQcjWSIAcve5-HSbCLDRLyrvYkK3CpHjT5Fga2cq0VnV3G1HHTYkrvl-icx4FRI1uqZpGNQt-ApWcu_-TP6Q_AakgIPI6a3K6uHl_PO44BBWPAxVySzTI2luHuouWViAqDzAehUQijojKvK7b5OgABOu3rbi1J2WRKKGS--PyrI8ho3RBaxRQTqxBSnnG-CeTCU5sX6A4_Twn2nHApD0DJEn6u",
-  },
-  ethan: {
-    name: "Ethan",
-    subtitle: "Beginner Weightlifter",
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBk4TjRKEhM45QPM48QMXjVwYvZslZ3HZUzRj4oRA0YEPDus4p2JKc1r2FBPTYRla_DXKk-YnFLDE0W1ZUPtZoPDVB7Z5MY1OgZQH1SAsv4gZTZdIRAU0dBX0vK1hVRY-a4cVX1WNT_pQdUsHSfJgwMMH_iWQBPbJdM_KSFkn9SgNRtTBPZxVO86Ndb-VJSINTMNASZX0uQaiVWrgdv6gMQzmEE6ar0HsISmwYKK2m2Wsu3FvXfN4VDfvVTqKzOiC_dLhXOq5N7LTFe",
-  },
-};
+      "https://images.unsplash.com/photo-1520975958225-8f11f3c3d5b8?auto=format&fit=crop&w=300&q=80",
+  };
+}
+
+/* =========================================================
+   COMPONENT
+========================================================= */
 
 export default function Chat() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const peer = useMemo(() => mockUsers[id] ?? mockUsers.alex, [id]);
+  const { conversations, matches, sendMessage, reportUser, blockUser } = useAppState();
+
+  /* =========================================================
+     PEER (Who you're chatting with)
+     Priority:
+       1) navigation state user
+       2) match row (name/avatar/subtitle)
+       3) fallback placeholder
+  ========================================================= */
+
+  const peer = useMemo(() => {
+    const fromState = location.state?.user;
+    if (fromState?.id) return fromState;
+
+    const match = (matches || []).find((m) => m.userId === id);
+    if (match) {
+      return {
+        id: match.userId,
+        name: match.name,
+        subtitle: match.subtitle || "Training Partner",
+        avatar: match.avatar || buildFallbackPeer(id).avatar,
+      };
+    }
+
+    return buildFallbackPeer(id);
+  }, [id, location.state, matches]);
+
+  /* =========================================================
+     CONVERSATION
+  ========================================================= */
+
+  const convo = useMemo(() => {
+    return (conversations || []).find((c) => c.userId === id) || null;
+  }, [conversations, id]);
+
+  const messages = convo?.messages || [];
+
+  /* =========================================================
+     COMPOSER
+  ========================================================= */
 
   const [text, setText] = useState("");
-  const [messages, setMessages] = useState([
-    { from: "them", text: "Hey! What days do you usually train?", time: "9:12 AM" },
-    { from: "me", text: "Mostly mornings. I'm flexible on weekends too.", time: "9:14 AM" },
-    { from: "them", text: "Nice — want to do a session this week?", time: "9:18 AM" },
-  ]);
 
   const send = () => {
     const t = text.trim();
     if (!t) return;
-    setMessages((prev) => [...prev, { from: "me", text: t, time: "Now" }]);
+
+    sendMessage({ toUserId: id, text: t });
     setText("");
   };
+
+  /* =========================================================
+     NAV: OPEN PROFILE FROM CHAT HEADER
+  ========================================================= */
+
+  const goToProfile = () => {
+    // Send state so ProfileView loads instantly, but it also works
+    // without state because ProfileView already falls back by id.
+    navigate(`/profile-view/${peer.id}`, { state: { user: peer } });
+  };
+
+  /* =========================================================
+     REPORT / BLOCK (Header safety action)
+  ========================================================= */
+
+  const handleReport = () => {
+    const reason = window.prompt("Report reason? (spam, harassment, fake profile, etc.)");
+    if (!reason) return;
+
+    const details = window.prompt("Any details? (optional)") || "";
+    reportUser({ targetUserId: id, reason, details });
+
+    const alsoBlock = window.confirm("Report submitted. Block this user too?");
+    if (alsoBlock) {
+      blockUser(id);
+      navigate("/discover");
+    } else {
+      window.alert("Report submitted. Thank you.");
+    }
+  };
+
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
   return (
     <div className="min-h-screen font-[Lexend] bg-[#101c22] text-slate-200">
       <div className="mx-auto flex min-h-screen w-full max-w-[390px] flex-col">
-        {/* Header */}
+        {/* =====================================================
+           HEADER
+        ====================================================== */}
         <header className="sticky top-0 z-10 border-b border-white/10 bg-[#101c22]/80 px-4 py-4 backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <button
@@ -60,58 +131,87 @@ export default function Chat() {
               <ArrowLeft className="h-6 w-6 text-white" />
             </button>
 
-            <div className="flex items-center gap-3">
+            {/* CLICKABLE PEER (avatar + name) */}
+            <button
+              type="button"
+              onClick={goToProfile}
+              className="flex items-center gap-3 rounded-full px-2 py-1 hover:bg-white/5 active:bg-white/10"
+              aria-label="Open profile"
+              title="View profile"
+            >
               <div className="h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-white/5">
-                <img src={peer.avatar} alt={peer.name} className="h-full w-full object-cover" />
+                <img
+                  src={peer.avatar}
+                  alt={peer.name}
+                  className="h-full w-full object-cover"
+                />
               </div>
-              <div className="leading-tight">
+
+              <div className="leading-tight text-left">
                 <div className="text-sm font-extrabold text-white">{peer.name}</div>
                 <div className="text-xs font-semibold text-slate-400">{peer.subtitle}</div>
               </div>
-            </div>
+            </button>
 
             <button
               type="button"
-              onClick={() => alert("Report flow later")}
+              onClick={handleReport}
               className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/5"
               aria-label="Report"
+              title="Report / Block"
             >
               <ShieldAlert className="h-6 w-6 text-white" />
             </button>
           </div>
         </header>
 
-        {/* Messages */}
+        {/* =====================================================
+           MESSAGES
+        ====================================================== */}
         <main className="flex-1 overflow-y-auto px-4 py-4 pb-24 space-y-3">
-          {messages.map((m, idx) => {
-            const mine = m.from === "me";
-            return (
-              <div
-                key={idx}
-                className={[
-                  "flex",
-                  mine ? "justify-end" : "justify-start",
-                ].join(" ")}
-              >
+          {messages.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              No messages yet. Say hi 👋
+            </div>
+          ) : (
+            messages.map((m, idx) => {
+              const mine = m.from === "me";
+              const timeLabel =
+                m.time ||
+                (m.createdAt
+                  ? new Date(m.createdAt).toLocaleTimeString([], {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : "");
+
+              return (
                 <div
-                  className={[
-                    "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm",
-                    mine
-                      ? "bg-[#13a4ec] text-white rounded-br-md"
-                      : "bg-white/5 border border-white/10 text-slate-200 rounded-bl-md",
-                  ].join(" ")}
+                  key={m.id || idx}
+                  className={["flex", mine ? "justify-end" : "justify-start"].join(" ")}
                 >
-                  <div>{m.text}</div>
-                  <div className="mt-1 text-[11px] font-semibold opacity-80">
-                    {m.time}
+                  <div
+                    className={[
+                      "max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm",
+                      mine
+                        ? "bg-[#13a4ec] text-white rounded-br-md"
+                        : "bg-white/5 border border-white/10 text-slate-200 rounded-bl-md",
+                    ].join(" ")}
+                  >
+                    <div>{m.text}</div>
+                    <div className="mt-1 text-[11px] font-semibold opacity-80">
+                      {timeLabel}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </main>
 
-        {/* Composer */}
+        {/* =====================================================
+           COMPOSER
+        ====================================================== */}
         <footer className="sticky bottom-0 border-t border-white/10 bg-[#101c22]/80 p-3 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <input
