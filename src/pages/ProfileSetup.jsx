@@ -4,7 +4,7 @@
 // Imports
 // ======================
 import { useAppState } from "../state/AppState";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -57,7 +57,7 @@ const MAX_PHOTOS = 6;
 // ======================
 // Helpers
 // ======================
-// Convert a File -> base64 data URL (persists in localStorage)
+// Convert a File -> local preview while the backend upload runs.
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -65,6 +65,25 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function getPhotoSrc(photo) {
+  if (typeof photo === "string") return photo;
+  return photo?.src || photo?.url || "";
+}
+
+function normalizePhotoItem(photo) {
+  if (typeof photo === "string") {
+    return { id: crypto.randomUUID(), src: photo };
+  }
+
+  const src = getPhotoSrc(photo);
+  return {
+    ...photo,
+    id: photo?.id || crypto.randomUUID(),
+    src,
+    url: photo?.url || src,
+  };
 }
 
 /* Sortable photo item for DnD */
@@ -119,12 +138,21 @@ export default function ProfileSetup() {
   // Hooks / State
   // ======================
   const navigate = useNavigate();
-  const { me, updateMe } = useAppState();
+  const {
+    me,
+    saveProfile,
+    refreshMe,
+    authLoading,
+    uploadProfilePhoto,
+    deleteProfilePhoto,
+    reorderProfilePhotos,
+  } = useAppState();
 
   // Use AppState as the single source of truth for initial values
   const existing = useMemo(() => me ?? {}, [me]);
 
   const fileInputRef = useRef(null);
+  const hydratedRef = useRef(false);
 
   const [name, setName] = useState(existing?.name ?? "");
   const [age, setAge] = useState(existing?.age?.toString() ?? "");
@@ -137,11 +165,35 @@ export default function ProfileSetup() {
 
   const [photos, setPhotos] = useState(
   Array.isArray(existing?.photos)
-    ? existing.photos.map((p) => (typeof p === "string" ? { id: crypto.randomUUID(), src: p } : p))
+    ? existing.photos.map(normalizePhotoItem)
     : []
 );
 
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    refreshMe();
+  }, [refreshMe]);
+
+  useEffect(() => {
+    if (!me || authLoading || hydratedRef.current) return;
+    hydratedRef.current = true;
+
+    setName(me?.name ?? "");
+    setAge(me?.age?.toString() ?? "");
+    setGender(me?.gender ?? "Male");
+    setLocation(me?.location ?? "");
+    setSkill(me?.skill ?? "Beginner");
+    setAvailability(me?.availability ?? "Evening");
+    setBio(me?.bio ?? "");
+    setSelectedInterests(me?.interests ?? ["Gym"]);
+    setPhotos(
+      Array.isArray(me?.photos)
+        ? me.photos.map(normalizePhotoItem)
+        : []
+    );
+  }, [authLoading, me]);
 
   // ======================
   // Handlers
@@ -157,19 +209,40 @@ export default function ProfileSetup() {
   };
 
   const onPhotosSelected = async (e) => {
+    const openSlots = Math.max(0, MAX_PHOTOS - photos.length);
+    const files = Array.from(e.target.files || []).slice(0, openSlots);
+    if (!files.length) return;
+
     try {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
+      for (const file of files) {
+        const previewSrc = await fileToDataUrl(file);
+        const tempId = crypto.randomUUID();
 
-      // Convert files to base64 data URLs (persistable)
-      const dataUrls = await Promise.all(files.map(fileToDataUrl));
+        setPhotos((prev) =>
+          [...prev, { id: tempId, src: previewSrc, uploading: true }].slice(0, MAX_PHOTOS)
+        );
 
-      setPhotos((prev) => {
-  const added = dataUrls.map((src) => ({ id: crypto.randomUUID(), src }));
-  const combined = [...prev, ...added];
-  return combined.slice(0, MAX_PHOTOS);
-  });
-
+        try {
+          const uploaded = await uploadProfilePhoto(file, previewSrc);
+          setPhotos((prev) =>
+            prev.map((photo) =>
+              photo.id === tempId
+                ? normalizePhotoItem({ ...uploaded, uploading: false })
+                : photo
+            )
+          );
+        } catch (uploadError) {
+          console.error(uploadError);
+          setPhotos((prev) =>
+            prev.map((photo) =>
+              photo.id === tempId
+                ? { ...photo, uploading: false, uploadError: true }
+                : photo
+            )
+          );
+          setError("Could not upload one of the images. Keeping the local preview.");
+        }
+      }
 
       // Reset input so selecting the same file again still triggers onChange
       e.target.value = "";
@@ -179,12 +252,22 @@ export default function ProfileSetup() {
     }
   };
 
-  const removePhoto = (id) => {
-  setPhotos((prev) => prev.filter((p) => p.id !== id));
+  const removePhoto = async (id) => {
+  const photo = photos.find((p) => p.id === id);
+  const nextPhotos = photos.filter((p) => p.id !== id);
+  setPhotos(nextPhotos);
+
+  try {
+    await deleteProfilePhoto(photo);
+    await reorderProfilePhotos(nextPhotos);
+  } catch (err) {
+    console.error(err);
+    setError("Could not sync photo removal. The local photo list was updated.");
+  }
 };
 
 
-  const onSave = () => {
+  const onSave = async () => {
     setError("");
 
     if (!name.trim()) return setError("Please enter your name.");
@@ -193,7 +276,9 @@ export default function ProfileSetup() {
     if (!selectedInterests.length) return setError("Please select at least one interest.");
     if (bio.trim().length < 10) return setError("Bio should be at least 10 characters.");
 
-    updateMe({
+    try {
+      setSaving(true);
+      await saveProfile({
       name,
       age,
       gender,
@@ -202,10 +287,15 @@ export default function ProfileSetup() {
       availability,
       bio,
       interests: selectedInterests,
-      photos: photos.map((p) => p.src), 
-    });
+      photos: photos.map(normalizePhotoItem).filter((p) => p.src), 
+      });
 
-    navigate("/profile");
+      navigate("/profile");
+    } catch (err) {
+      setError(err.message || "Could not save your profile. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
     // ======================
@@ -221,17 +311,24 @@ export default function ProfileSetup() {
     useSensor(KeyboardSensor)
   );
 
-  const onDragEnd = (event) => {
+  const onDragEnd = async (event) => {
   const { active, over } = event;
   if (!over) return;
   if (active.id === over.id) return;
 
-  setPhotos((items) => {
-    const oldIndex = items.findIndex((p) => p.id === active.id);
-    const newIndex = items.findIndex((p) => p.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return items;
-    return arrayMove(items, oldIndex, newIndex);
-  });
+  const oldIndex = photos.findIndex((p) => p.id === active.id);
+  const newIndex = photos.findIndex((p) => p.id === over.id);
+  if (oldIndex === -1 || newIndex === -1) return;
+
+  const nextPhotos = arrayMove(photos, oldIndex, newIndex);
+  setPhotos(nextPhotos);
+
+  try {
+    await reorderProfilePhotos(nextPhotos);
+  } catch (err) {
+    console.error(err);
+    setError("Could not sync photo order. The local order was updated.");
+  }
 };
 
 
@@ -416,6 +513,7 @@ export default function ProfileSetup() {
     ref={fileInputRef}
     type="file"
     accept="image/*"
+    capture="user"
     multiple
     hidden
     onChange={onPhotosSelected}
@@ -460,9 +558,10 @@ export default function ProfileSetup() {
           <button
             type="button"
             onClick={onSave}
+            disabled={saving || authLoading}
             className="h-14 w-full rounded-full bg-[#13a4ec] text-lg font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#13a4ec]/90 focus:outline-none focus:ring-2 focus:ring-[#13a4ec]/40"
           >
-            Save Profile
+            {saving ? "Saving..." : "Save Profile"}
           </button>
         </footer>
       </div>

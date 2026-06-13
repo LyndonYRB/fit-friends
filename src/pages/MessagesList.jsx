@@ -2,7 +2,7 @@
 // src/pages/MessagesList.jsx
 import { Link } from "react-router-dom";
 import { Compass, MessageCircle, User, Search, ChevronRight } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useAppState } from "../state/AppState.jsx";
 
 /* =========================================================
@@ -34,7 +34,24 @@ function formatRelativeTime(iso) {
 ========================================================= */
 
 export default function MessagesList() {
-  const { matches, conversations, blockedUserIds } = useAppState();
+  const {
+    matches,
+    conversations,
+    blockedUserIds,
+    loadConnections,
+    loadConversations,
+    socialError,
+    socialLoading,
+  } = useAppState();
+
+  useEffect(() => {
+    async function loadThreads() {
+      await loadConnections();
+      await loadConversations();
+    }
+
+    loadThreads();
+  }, [loadConnections, loadConversations]);
 
   const threads = useMemo(() => {
     const convoByUserId = new Map((conversations || []).map((c) => [c.userId, c]));
@@ -92,7 +109,17 @@ export default function MessagesList() {
         ====================================================== */}
         <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24">
           <div className="space-y-3">
-            {threads.length === 0 ? (
+            {socialError ? (
+              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-100">
+                {socialError}
+              </div>
+            ) : null}
+
+            {socialLoading && threads.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                Loading chats...
+              </div>
+            ) : threads.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
                 No chats yet. Go to Discover and Connect with someone.
               </div>

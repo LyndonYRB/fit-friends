@@ -10,7 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.env
 *.local
+
+# Backend local/generated files
+backend/backend-github/src/generated/prisma
+backend/backend-github/uploads/*
+!backend/backend-github/uploads/.gitkeep
 
 # Editor directories and files
 .vscode/*

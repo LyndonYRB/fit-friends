@@ -1,6 +1,6 @@
 // Chat screen
 // src/pages/Chat.jsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, ShieldAlert, Send } from "lucide-react";
 import { useAppState } from "../state/AppState.jsx";
@@ -29,7 +29,17 @@ export default function Chat() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { conversations, matches, sendMessage, reportUser, blockUser } = useAppState();
+  const {
+    conversations,
+    matches,
+    sendMessage,
+    reportUser,
+    blockUser,
+    loadConversationMessages,
+    socialError,
+    socialLoading,
+    blockedUserIds,
+  } = useAppState();
 
   /* =========================================================
      PEER (Who you're chatting with)
@@ -66,18 +76,28 @@ export default function Chat() {
 
   const messages = convo?.messages || [];
 
+  useEffect(() => {
+    loadConversationMessages(id);
+  }, [id, loadConversationMessages]);
+
+  useEffect(() => {
+    if ((blockedUserIds || []).includes(id)) {
+      navigate("/messages", { replace: true });
+    }
+  }, [blockedUserIds, id, navigate]);
+
   /* =========================================================
      COMPOSER
   ========================================================= */
 
   const [text, setText] = useState("");
 
-  const send = () => {
+  const send = async () => {
     const t = text.trim();
     if (!t) return;
 
-    sendMessage({ toUserId: id, text: t });
     setText("");
+    await sendMessage({ toUserId: id, text: t });
   };
 
   /* =========================================================
@@ -94,16 +114,16 @@ export default function Chat() {
      REPORT / BLOCK (Header safety action)
   ========================================================= */
 
-  const handleReport = () => {
+  const handleReport = async () => {
     const reason = window.prompt("Report reason? (spam, harassment, fake profile, etc.)");
     if (!reason) return;
 
     const details = window.prompt("Any details? (optional)") || "";
-    reportUser({ targetUserId: id, reason, details });
+    await reportUser({ targetUserId: id, reason, details });
 
     const alsoBlock = window.confirm("Report submitted. Block this user too?");
     if (alsoBlock) {
-      blockUser(id);
+      await blockUser(id);
       navigate("/discover");
     } else {
       window.alert("Report submitted. Thank you.");
@@ -169,7 +189,17 @@ export default function Chat() {
            MESSAGES
         ====================================================== */}
         <main className="flex-1 overflow-y-auto px-4 py-4 pb-24 space-y-3">
-          {messages.length === 0 ? (
+          {socialError ? (
+            <div className="mt-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-100">
+              {socialError}
+            </div>
+          ) : null}
+
+          {socialLoading && messages.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              Loading messages...
+            </div>
+          ) : messages.length === 0 ? (
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
               No messages yet. Say hi 👋
             </div>

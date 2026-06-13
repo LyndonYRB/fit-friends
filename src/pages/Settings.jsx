@@ -12,10 +12,22 @@ import {
   Moon,
   LogOut,
 } from "lucide-react";
+import { useAppState } from "../state/AppState.jsx";
+
+const getPhotoSrc = (photo) => {
+  if (typeof photo === "string") return photo;
+  return photo?.src || photo?.url || "";
+};
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { authUser, logout, me } = useAppState();
   const [darkMode, setDarkMode] = useState(true);
+  const fallbackAvatar =
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuBlIypLNEHjhnguGqoMinVScvBaOgub9o9C4DcePlneS6qve8Y8GWgxoreBjO3eFeQpsaXuqzZA8wj9oe40z0bKrylPuKu88w13KD-H7EbHWwijO5tB7pi8P3dwHMIbNTMlo7MZI40hCtpnSu8SwIyyXEH5RxsN4LqVnEVvgM2-GCoLX6k4_g0BeYZ24y1PNdvJm9kwbyxbq9-T3_oXG6-BqKV71Fpmq5iE1Iw8xrkGHUPTmPGuYIzK3k7Qnp7hgMNXbX6Wo-LqpOGP";
+  const profilePhoto = Array.isArray(me?.photos) ? getPhotoSrc(me.photos[0]) : null;
+  const displayName = me?.name || authUser?.profile?.name || "Your Profile";
+  const displayEmail = authUser?.email || me?.email || "";
 
   // Optional: if you want the toggle to actually control the "dark" class
   // (works if you're using the class strategy)
@@ -59,13 +71,12 @@ export default function Settings() {
               <div
                 className="h-20 w-20 rounded-full bg-cover bg-center"
                 style={{
-                  backgroundImage:
-                    'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBlIypLNEHjhnguGqoMinVScvBaOgub9o9C4DcePlneS6qve8Y8GWgxoreBjO3eFeQpsaXuqzZA8wj9oe40z0bKrylPuKu88w13KD-H7EbHWwijO5tB7pi8P3dwHMIbNTMlo7MZI40hCtpnSu8SwIyyXEH5RxsN4LqVnEVvgM2-GCoLX6k4_g0BeYZ24y1PNdvJm9kwbyxbq9-T3_oXG6-BqKV71Fpmq5iE1Iw8xrkGHUPTmPGuYIzK3k7Qnp7hgMNXbX6Wo-LqpOGP")',
+                  backgroundImage: `url("${profilePhoto || fallbackAvatar}")`,
                 }}
               />
               <div>
-                <h2 className="text-xl font-bold text-white">Alex Johnson</h2>
-                <p className="text-sm text-gray-400">alex.j@example.com</p>
+                <h2 className="text-xl font-bold text-white">{displayName}</h2>
+                <p className="text-sm text-gray-400">{displayEmail}</p>
               </div>
             </div>
 
@@ -161,7 +172,10 @@ export default function Settings() {
               <div className="overflow-hidden rounded-2xl bg-white/5 shadow-sm ring-1 ring-white/10">
                 <button
                   className="flex w-full items-center justify-center gap-3 p-4 text-red-400"
-                  onClick={() => alert("Hook this up to auth logout later")}
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
                 >
                   <LogOut className="h-5 w-5" />
                   <span className="font-semibold">Log Out</span>

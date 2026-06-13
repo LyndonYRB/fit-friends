@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MOCK_USERS } from "../data/mockUsers.jsx";
 import { useAppState } from "../state/AppState";
+import { api, getAccessToken } from "../lib/api";
 import {
   SlidersHorizontal,
   ChevronDown,
@@ -31,6 +32,74 @@ const ACTIVITIES = [
 
 /* -------------------- Skills -------------------- */
 const SKILLS = ["Any", "Beginner", "Intermediate", "Advanced"];
+
+const FALLBACK_PHOTO =
+  "https://images.unsplash.com/photo-1520975958225-8f11f3c3d5b8?auto=format&fit=crop&w=900&q=80";
+
+function toApiValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace("weekends_only", "weekends");
+}
+
+function activityQueryValues(activity) {
+  const value = toApiValue(activity);
+  if (value === "gym") return ["gym", "strength"];
+  return [value];
+}
+
+function buildDiscoverQuery({ prefs, selectedActivities, skillPref, radius }) {
+  const params = new URLSearchParams();
+  const activities = selectedActivities.flatMap(activityQueryValues);
+
+  if (activities.length) params.set("activities", Array.from(new Set(activities)).join(","));
+  if (skillPref && skillPref !== "Any") params.set("skill", toApiValue(skillPref));
+  if (prefs?.ageMin) params.set("ageMin", String(prefs.ageMin));
+  if (prefs?.ageMax) params.set("ageMax", String(prefs.ageMax));
+  if (prefs?.genderPref && prefs.genderPref !== "Any") {
+    params.set("gender", toApiValue(prefs.genderPref));
+  }
+  if (prefs?.availabilityFilterOn && prefs?.availabilityPref) {
+    params.set("availability", toApiValue(prefs.availabilityPref));
+  }
+  if (radius) params.set("radius", String(radius));
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+function titleValue(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function mapBackendUserToCard(user) {
+  const interests = Array.isArray(user.interests) ? user.interests : [];
+  const skill = user.skill ? titleValue(user.skill) : "";
+  const activity = interests[0] ? titleValue(interests[0]) : "";
+  const photos = Array.isArray(user.photos) && user.photos.length ? user.photos : [FALLBACK_PHOTO];
+
+  return {
+    ...user,
+    name: user.name || "Athlete",
+    age: user.age,
+    subtitle: user.subtitle || `${skill || "Training"} Partner`,
+    distance: user.distance || "Nearby",
+    location: user.location || "Nearby",
+    bio: user.bio || "",
+    photos,
+    interests: interests.map(titleValue),
+    skill,
+    availability: Array.isArray(user.availability)
+      ? user.availability.map(titleValue).join(", ")
+      : titleValue(user.availability),
+    activity,
+    miles: Number(String(user.distance || "").match(/\d+/)?.[0] || 0),
+  };
+}
 
 
 
@@ -62,6 +131,10 @@ export default function Discover() {
 
   const [open, setOpen] = useState(null); // "sport" | "skill" | "distance" | null
   const filterRef = useRef(null);
+  const [backendUsers, setBackendUsers] = useState([]);
+  const [usingMockFallback, setUsingMockFallback] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   /* Swipe state */
   const SWIPE_X_THRESHOLD = 120;
@@ -89,8 +162,10 @@ export default function Discover() {
   }, [open]);
 
   /* Prefs */
-  const preferredActivities =
-    prefs && prefs.preferredActivities ? prefs.preferredActivities : ["Gym"];
+  const preferredActivities = useMemo(
+    () => (prefs && prefs.preferredActivities ? prefs.preferredActivities : ["Gym"]),
+    [prefs]
+  );
 
   const skillPref = prefs && prefs.skillPref ? prefs.skillPref : "Any";
   const radius = prefs && prefs.radius ? prefs.radius : "10";
@@ -117,12 +192,58 @@ export default function Discover() {
       ? preferredActivities
       : ACTIVITIES;
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDiscover() {
+      if (!getAccessToken()) {
+        setBackendUsers([]);
+        setUsingMockFallback(true);
+        setLoadError("");
+        return;
+      }
+
+      setLoadingUsers(true);
+      setLoadError("");
+
+      try {
+        const query = buildDiscoverQuery({
+          prefs,
+          selectedActivities,
+          skillPref,
+          radius,
+        });
+        const users = await api.discover(query);
+        if (cancelled) return;
+        setBackendUsers(Array.isArray(users) ? users.map(mapBackendUserToCard) : []);
+        setUsingMockFallback(false);
+      } catch (error) {
+        if (cancelled) return;
+        setBackendUsers([]);
+        setUsingMockFallback(true);
+        setLoadError(error.message || "Could not load partners. Showing demo matches.");
+      } finally {
+        if (!cancelled) setLoadingUsers(false);
+      }
+    }
+
+    loadDiscover();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [prefs, radius, selectedActivities, skillPref]);
+
     const filteredResults = useMemo(() => {
-      return MOCK_USERS
+      const sourceUsers = usingMockFallback ? MOCK_USERS : backendUsers;
+
+      return sourceUsers
         .map((u) => ({ ...u, __userId: u.id }))
         .filter((u) => {
           const isBlocked = (blockedUserIds || []).includes(u.__userId);
           if (isBlocked) return false;
+
+          if (!usingMockFallback) return true;
 
           const activityOk = selectedActivities.includes(u.activity || u.interests?.[0]);
           const skillOk = skillPref === "Any" || u.skill === skillPref;
@@ -132,7 +253,7 @@ export default function Discover() {
 
           return activityOk && skillOk && distanceOk;
         });
-    }, [selectedActivities, skillPref, radius, blockedUserIds]);
+    }, [backendUsers, usingMockFallback, selectedActivities, skillPref, radius, blockedUserIds]);
 
 
 
@@ -151,7 +272,25 @@ const topCard = deck.length ? deck[0] : null;
 /* NOW define commitSwipe AFTER setDeck exists */
 const commitSwipe = (dir) => {
   if (!deck.length) return;
+  const swipedCard = deck[0];
   setSwipeOut(dir);
+
+  const actionByDirection = {
+    left: "pass",
+    right: "like",
+    up: "super_like",
+  };
+
+  if (getAccessToken() && swipedCard?.id) {
+    api
+      .swipe({
+        targetUserId: swipedCard.id,
+        action: actionByDirection[dir],
+      })
+      .catch((error) => {
+        setLoadError(error.message || "Could not sync swipe. Keeping local swipe.");
+      });
+  }
 
   window.setTimeout(() => {
     setDeck((prev) => prev.slice(1));
@@ -344,8 +483,19 @@ const commitSwipe = (dir) => {
 
         {/* ---------------- Main ---------------- */}
 <main className="flex-1 px-6 pt-4 pb-24">
+  {loadError ? (
+    <div className="mb-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-xs font-semibold text-yellow-100">
+      {loadError}
+    </div>
+  ) : null}
+
   <div className="relative h-[60vh]">
-    {deck.length === 0 ? (
+    {loadingUsers ? (
+      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+        <div className="text-lg font-extrabold text-white">Loading partners...</div>
+        <div className="mt-2 text-sm text-slate-300">Finding athletes who match your filters.</div>
+      </div>
+    ) : deck.length === 0 ? (
       <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
         <div className="text-lg font-extrabold text-white">No matches</div>
         <div className="mt-2 text-sm text-slate-300">
