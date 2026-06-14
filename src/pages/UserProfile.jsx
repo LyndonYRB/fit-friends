@@ -5,7 +5,7 @@
 
 /* ---------- Imports ---------- */
 import { useAppState } from "../state/AppState.jsx";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -41,16 +41,22 @@ const fileToDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
+const getPhotoSrc = (photo) => {
+  if (typeof photo === "string") return photo;
+  return photo?.src || photo?.url || "";
+};
+
 /* =======================================
    Component
 ======================================= */
 export default function UserProfile() {
   /* ---------- Navigation & Global State ---------- */
   const navigate = useNavigate();
-  const { me, updateMe } = useAppState();
+  const { me, updateMe, uploadProfilePhoto } = useAppState();
 
   /* ---------- Derived ---------- */
-  const photos = me?.photos || [];
+  const photoItems = Array.isArray(me?.photos) ? me.photos : [];
+  const photos = photoItems.map(getPhotoSrc).filter(Boolean);
   const cover = photos[0] || "";
   const interests = me?.interests || [];
   const name = me?.name || "Your Name";
@@ -63,6 +69,13 @@ export default function UserProfile() {
   const [carouselOpen, setCarouselOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
   /* ---------- Swipe handling ---------- */
   const touchStartX = useRef(null);
@@ -98,19 +111,142 @@ export default function UserProfile() {
 
   const openLibraryPicker = () => libraryInputRef.current?.click();
   const openCameraPicker = () => cameraInputRef.current?.click();
+  const stopCamera = (stream = cameraStream) => {
+    stream?.getTracks?.().forEach((track) => track.stop());
+    setCameraStream(null);
+  };
 
-  const onPhotosSelected = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  useEffect(() => {
+    if (cameraOpen && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraOpen, cameraStream]);
+
+  useEffect(() => {
+    return () => {
+      cameraStream?.getTracks?.().forEach((track) => track.stop());
+    };
+  }, [cameraStream]);
+
+  const startCamera = async () => {
+    const openSlots = Math.max(0, 6 - photoItems.length);
+    if (!openSlots) {
+      setPhotoError("You can upload up to 6 profile photos.");
+      setSheetOpen(false);
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setPhotoError("This browser does not support in-app camera capture. Opening the file picker instead.");
+      openCameraPicker();
+      setSheetOpen(false);
+      return;
+    }
+
+    setCameraStarting(true);
+    setPhotoError("");
 
     try {
-      const dataUrls = await Promise.all(files.map(fileToDataUrl));
-      const combined = [...photos, ...dataUrls].slice(0, 6);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
 
-      // IMPORTANT: safest update (prevents wiping other fields if updateMe replaces)
-      updateMe({ ...me, photos: combined });
+      setCameraStream(stream);
+      setCameraOpen(true);
+      setSheetOpen(false);
     } catch (err) {
       console.error(err);
+      const errorName = err?.name || "";
+      if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+        setPhotoError("Camera permission was denied. You can still choose an image from your files.");
+      } else if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
+        setPhotoError("No camera was found on this device. You can still choose an image from your files.");
+      } else {
+        setPhotoError("Could not start the camera. You can still choose an image from your files.");
+      }
+    } finally {
+      setCameraStarting(false);
+    }
+  };
+
+  const cancelCamera = () => {
+    stopCamera();
+    setCameraOpen(false);
+  };
+
+  const captureCameraPhoto = async () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const width = video.videoWidth || 720;
+    const height = video.videoHeight || 960;
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, width, height);
+
+    setPhotoUploading(true);
+    setPhotoError("");
+
+    try {
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (nextBlob) => {
+            if (nextBlob) resolve(nextBlob);
+            else reject(new Error("Could not capture camera image."));
+          },
+          "image/jpeg",
+          0.9
+        );
+      });
+      const file = new File([blob], `profile-photo-${Date.now()}.jpg`, {
+        type: "image/jpeg",
+      });
+      const previewSrc = canvas.toDataURL("image/jpeg", 0.9);
+      const uploaded = await uploadProfilePhoto(file, previewSrc);
+      updateMe({ photos: [...photoItems, uploaded || previewSrc].slice(0, 6) });
+      cancelCamera();
+    } catch (err) {
+      console.error(err);
+      setPhotoError("Could not capture or upload the photo. Try again or choose an image.");
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const onPhotosSelected = async (e) => {
+    const openSlots = Math.max(0, 6 - photoItems.length);
+    const files = Array.from(e.target.files || []).slice(0, openSlots);
+    if (!files.length) return;
+
+    setPhotoUploading(true);
+    setPhotoError("");
+
+    try {
+      const nextPhotos = [...photoItems];
+
+      for (const file of files) {
+        const previewSrc = await fileToDataUrl(file);
+
+        try {
+          const uploaded = await uploadProfilePhoto(file, previewSrc);
+          nextPhotos.push(uploaded || previewSrc);
+        } catch (uploadError) {
+          console.error(uploadError);
+          nextPhotos.push(previewSrc);
+          setPhotoError("Could not upload one of the photos. Keeping the local preview.");
+        }
+      }
+
+      updateMe({ photos: nextPhotos.slice(0, 6) });
+    } catch (err) {
+      console.error(err);
+      setPhotoError("Could not read one of the photos. Try a different image.");
+    } finally {
+      setPhotoUploading(false);
     }
 
     e.target.value = "";
@@ -158,10 +294,16 @@ export default function UserProfile() {
             ref={cameraInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
+            capture="user"
             hidden
             onChange={onPhotosSelected}
           />
+
+          {photoError ? (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {photoError}
+            </div>
+          ) : null}
 
           {/* Cover Photo (tap to open carousel)
               NOTE: this is now a DIV (not a button) to avoid nested buttons
@@ -308,6 +450,7 @@ export default function UserProfile() {
                 <button
                   type="button"
                   onClick={openLibraryPicker}
+                  disabled={photoUploading}
                   className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 text-sm font-bold text-white hover:bg-white/10"
                 >
                   <ImagePlus className="h-5 w-5" />
@@ -315,16 +458,72 @@ export default function UserProfile() {
                 </button>
                 <button
                   type="button"
-                  onClick={openCameraPicker}
+                  onClick={startCamera}
+                  disabled={photoUploading || cameraStarting}
                   className="flex h-14 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 text-sm font-bold text-white hover:bg-white/10"
                 >
                   <Camera className="h-5 w-5" />
-                  Take photo
+                  {photoUploading || cameraStarting ? "Opening..." : "Take photo"}
                 </button>
               </div>
 
               <div className="mt-3 text-xs text-gray-500">
-                On mobile, “Take photo” opens camera (browser/device dependent).
+                If in-app camera is unavailable, your browser may fall back to the camera/file picker.
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {cameraOpen ? (
+          <div
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="absolute left-0 right-0 top-1/2 mx-auto w-full max-w-[390px] -translate-y-1/2 px-4">
+              <div className="rounded-3xl border border-white/10 bg-[#0f1b21] p-4">
+                <div className="flex items-center justify-between pb-3">
+                  <div className="text-sm font-bold text-white">Take a photo</div>
+                  <button
+                    type="button"
+                    onClick={cancelCamera}
+                    className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/5"
+                    aria-label="Cancel camera"
+                  >
+                    <X className="h-5 w-5 text-white" />
+                  </button>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="aspect-[4/5] w-full object-cover"
+                  />
+                  <canvas ref={canvasRef} hidden />
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={cancelCamera}
+                    disabled={photoUploading}
+                    className="flex h-14 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-bold text-white hover:bg-white/10"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={captureCameraPhoto}
+                    disabled={photoUploading}
+                    className="flex h-14 items-center justify-center gap-2 rounded-full bg-[#13a4ec] text-sm font-bold text-white hover:bg-[#13a4ec]/90"
+                  >
+                    <Camera className="h-5 w-5" />
+                    {photoUploading ? "Uploading..." : "Capture"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

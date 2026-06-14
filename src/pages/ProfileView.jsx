@@ -1,6 +1,6 @@
 // View Profiles
 // src/pages/ProfileView.jsx
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getMockUserById } from "../data/mockUsers.jsx";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -14,6 +14,7 @@ import {
   HeartHandshake,
 } from "lucide-react";
 import { useAppState } from "../state/AppState.jsx";
+import { api, getAccessToken } from "../lib/api";
 
 /* =========================================================
    FALLBACK USER (prevents crashes if route state is missing)
@@ -49,11 +50,36 @@ const Chip = ({ icon, label, value }) => (
   </div>
 );
 
+function titleValue(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function mapBackendUser(user) {
+  const interests = Array.isArray(user.interests) ? user.interests : [];
+  const availability = Array.isArray(user.availability)
+    ? user.availability.map(titleValue).join(", ")
+    : titleValue(user.availability);
+
+  return {
+    ...user,
+    name: user.name || "Athlete",
+    subtitle: user.subtitle || "Training Partner",
+    location: user.location || "Nearby",
+    bio: user.bio || "",
+    photos: Array.isArray(user.photos) ? user.photos : [],
+    interests: interests.map(titleValue),
+    skill: titleValue(user.skill),
+    availability,
+  };
+}
+
 export default function ProfileView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { connectUser, blockUser, reportUser } = useAppState();
+  const { connectUser, blockUser, reportUser, hideUserLocally, socialError } = useAppState();
 
   /* =========================================================
      USER RESOLVE
@@ -63,7 +89,7 @@ export default function ProfileView() {
        3) fallback user
   ========================================================= */
 
-  const user = useMemo(() => {
+  const fallbackUser = useMemo(() => {
     const u = location?.state?.user;
     if (u && (u.name || u.id)) return u;
 
@@ -74,6 +100,51 @@ export default function ProfileView() {
 
     return FALLBACK_USER;
   }, [location?.state?.user, id]);
+
+  const [user, setUser] = useState(fallbackUser);
+  const [loadingUser, setLoadingUser] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [connecting, setConnecting] = useState(false);
+
+  useEffect(() => {
+    setUser(fallbackUser);
+  }, [fallbackUser]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUser() {
+      if (!id || !getAccessToken()) return;
+
+      setLoadingUser(true);
+      setLoadError("");
+
+      try {
+        const result = await api.getUser(id);
+        if (!cancelled) setUser(mapBackendUser(result));
+      } catch (error) {
+        if (!cancelled) {
+          if (error.status === 403) {
+            hideUserLocally(id);
+            navigate("/discover", { replace: true });
+            return;
+          }
+
+          setLoadError(error.message || "Could not load this profile. Showing saved fallback.");
+          setUser(fallbackUser);
+        }
+      } finally {
+        if (!cancelled) setLoadingUser(false);
+      }
+    }
+
+    loadUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackUser, hideUserLocally, id, navigate]);
 
   /* =========================================================
      SAFE DERIVED FIELDS
@@ -98,8 +169,10 @@ export default function ProfileView() {
      ACTIONS
   ========================================================= */
 
-  const onConnect = () => {
-    connectUser(user);
+  const onConnect = async () => {
+    setConnecting(true);
+    await connectUser(user);
+    setConnecting(false);
 
     navigate(`/chat/${user.id}`, {
       state: {
@@ -113,17 +186,22 @@ export default function ProfileView() {
     });
   };
 
-  const onReport = () => {
-    reportUser({
+  const onReport = async () => {
+    setActionError("");
+    await reportUser({
       targetUserId: user.id,
-      reason: "Inappropriate behavior",
+      reason: "spam",
       details: "",
     });
-    alert("Reported (local only for now).");
+    if (socialError) {
+      setActionError(socialError);
+    }
+    alert("Report submitted. Thank you.");
   };
 
-  const onBlock = () => {
-    blockUser(user.id);
+  const onBlock = async () => {
+    setActionError("");
+    await blockUser(user.id);
     navigate("/discover");
   };
 
@@ -151,6 +229,24 @@ export default function ProfileView() {
 
         {/* Main */}
         <main className="flex-1 overflow-y-auto px-6 pt-4 pb-28 space-y-5">
+          {loadingUser ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-semibold text-slate-300">
+              Loading profile...
+            </div>
+          ) : null}
+
+          {loadError ? (
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm font-semibold text-yellow-100">
+              {loadError}
+            </div>
+          ) : null}
+
+          {actionError || socialError ? (
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm font-semibold text-yellow-100">
+              {actionError || socialError}
+            </div>
+          ) : null}
+
           {/* Photo */}
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
             <div
@@ -250,10 +346,11 @@ export default function ProfileView() {
           <button
             type="button"
             onClick={onConnect}
+            disabled={connecting}
             className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#13a4ec] text-lg font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#13a4ec]/90 focus:outline-none focus:ring-2 focus:ring-[#13a4ec]/40"
           >
             <HeartHandshake className="h-5 w-5" />
-            Connect
+            {connecting ? "Connecting..." : "Connect"}
           </button>
         </footer>
       </div>

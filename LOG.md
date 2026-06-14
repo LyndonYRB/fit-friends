@@ -1,4 +1,4 @@
-# FitFriends — Development Log
+# Athlynk Development Log
 
 *Last updated: 2026-02-04*
 
@@ -8,7 +8,7 @@ This log consolidates **Chats 1–4** and documents all work completed so far so
 
 ## Project Goal
 
-UI-first prototype for **FitFriends**, a fitness + social matching app.
+UI-first prototype for **Athlynk**, a fitness + social matching app.
 
 * Frontend only (Vite + React)
 * No backend required yet

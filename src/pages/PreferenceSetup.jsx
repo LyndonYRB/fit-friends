@@ -1,5 +1,5 @@
 // src/pages/PreferenceSetup.jsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../state/AppState";
 import {
@@ -44,7 +44,7 @@ function Pill({ label, active, onClick }) {
 
 export default function PreferenceSetup() {
   const navigate = useNavigate();
-  const { prefs, updatePrefs } = useAppState();
+  const { prefs, savePreferences, refreshMe } = useAppState();
 
   // Prefill from AppState (persisted via localStorage)
   const [preferredActivities, setPreferredActivities] = useState(
@@ -61,6 +61,23 @@ export default function PreferenceSetup() {
     prefs?.availabilityPref ?? "Evening"
   );
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    refreshMe();
+  }, [refreshMe]);
+
+  useEffect(() => {
+    if (!prefs) return;
+
+    setPreferredActivities(prefs?.preferredActivities ?? ["Gym"]);
+    setGenderPref(prefs?.genderPref ?? "Any");
+    setAgeMin(prefs?.ageMin ?? "18");
+    setAgeMax(prefs?.ageMax ?? "35");
+    setRadius(prefs?.radius ?? "10");
+    setAvailabilityFilterOn(prefs?.availabilityFilterOn ?? false);
+    setAvailabilityPref(prefs?.availabilityPref ?? "Evening");
+  }, [prefs]);
 
   const toggleActivity = (label) => {
     setPreferredActivities((prev) =>
@@ -71,7 +88,7 @@ export default function PreferenceSetup() {
   const ageMinNum = useMemo(() => Number(ageMin), [ageMin]);
   const ageMaxNum = useMemo(() => Number(ageMax), [ageMax]);
 
-  const onContinue = () => {
+  const onContinue = async () => {
     setError("");
 
     if (!preferredActivities.length) return setError("Select at least one activity.");
@@ -82,17 +99,24 @@ export default function PreferenceSetup() {
     if (ageMinNum > ageMaxNum) return setError("Minimum age can't exceed maximum age.");
     if (!radius.trim() || Number(radius) < 1) return setError("Enter a valid distance.");
 
-    updatePrefs({
-      preferredActivities,
-      genderPref,
-      ageMin,
-      ageMax,
-      radius,
-      availabilityFilterOn,
-      availabilityPref,
-    });
+    try {
+      setSaving(true);
+      await savePreferences({
+        preferredActivities,
+        genderPref,
+        ageMin,
+        ageMax,
+        radius,
+        availabilityFilterOn,
+        availabilityPref,
+      });
 
-    navigate("/discover");
+      navigate("/discover");
+    } catch (err) {
+      setError(err.message || "Could not save your preferences. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -269,10 +293,11 @@ export default function PreferenceSetup() {
           <button
             type="button"
             onClick={onContinue}
+            disabled={saving}
             className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#13a4ec] text-lg font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#13a4ec]/90 focus:outline-none focus:ring-2 focus:ring-[#13a4ec]/40"
           >
             <Check className="h-5 w-5" />
-            Continue
+            {saving ? "Saving..." : "Continue"}
           </button>
         </footer>
       </div>

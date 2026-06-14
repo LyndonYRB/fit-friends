@@ -1,111 +1,130 @@
-# FitFriends 💪
+# Athlynk
 
-FitFriends is a React-based fitness + social web app UI built with **Vite + React**.
-This repo currently contains the **UI foundation**, **page routing**, and an interactive **Discover (Find Partners)** experience (filters + swipe).
+Athlynk is a fitness and social networking app for finding workout partners, connecting with matches, messaging, and managing a public fitness profile.
 
----
+The project contains:
+- React/Vite/Tailwind frontend at the project root
+- Node/Express/PostgreSQL backend in `backend/backend-github`
 
-## 🛠 Tech Stack
+## Tech Stack
+
+Frontend:
 - React
 - Vite
-- JavaScript (ES6+)
+- Tailwind CSS
 - React Router
 - Lucide Icons
-- Tailwind CSS
 
----
+Backend:
+- Node.js + Express 5
+- PostgreSQL 16
+- Prisma
+- JWT auth
+- bcryptjs password hashing
+- multer local photo uploads
+- Docker Compose for local Postgres
 
-## 📦 Install & Setup
+## Features
 
-```bash
-git clone https://github.com/LyndonYRB/fit-friends.git
-cd fit-friends
+- Register, login, logout, and current-user loading
+- Profile and preference save/load
+- Profile photo upload, delete, reorder, and in-browser camera capture
+- Discover users with filters and swipe actions
+- Public profile view
+- Connections/matches
+- Conversations and messages
+- Reports and mutual blocking
+- Local mock fallback where needed for development resilience
+
+## Frontend Setup
+
+From the project root:
+
+```powershell
 npm install
+Copy-Item .env.example .env
 npm run dev
 ```
----
 
-##  📦 Packages Installed
-```bash
-# Create Vite + React app
-npm create vite@latest
+The frontend runs at `http://localhost:5173`.
 
-# React Router
-npm install react-router-dom
+Root `.env` example:
 
-# Lucide Icons
-npm install lucide-react
+```env
+VITE_API_URL=http://localhost:4000
 ```
 
-## 📁 Pages Implemented (UI)
+## Backend Setup
 
-Landing / Welcome
+From `backend/backend-github`:
 
-Login
+```powershell
+npm install
+Copy-Item .env.example .env
+docker compose up -d
+npm run prisma:migrate
+npm run seed
+npm run dev
+```
 
-Create Account
+The backend API runs at `http://localhost:4000`.
 
-Create Profile
+Local Postgres note: Docker maps host port `5433` to container port `5432`, so the local `DATABASE_URL` uses `127.0.0.1:5433`.
 
-Dashboard
+Backend `.env` example:
 
-Explore
+```env
+PORT=4000
+DATABASE_URL="postgresql://fitfriends:fitfriends_pw@127.0.0.1:5433/fitfriends"
+JWT_ACCESS_SECRET="fitfriends_super_secret_change_me_123456789"
+CLIENT_URL="http://localhost:5173"
+```
 
-Friends
+## Seeded Test Accounts
 
-Messages
+Run `npm run seed` in `backend/backend-github`.
 
-Profile
+All seeded users use password:
 
-Edit Profile
+```text
+password123
+```
 
-Settings
+Accounts:
+- `lyndon@example.com`
+- `alex@example.com`
+- `maya@example.com`
 
-Discover / Find Partners
+## Useful Commands
 
-## 📸 Screenshots
+Frontend:
 
-### Landing
-<img src="screenshots/Screenshot%202025-12-24%20110949.png" width="150" />
+```powershell
+npm run dev
+npm run build
+```
 
-### Log In
-<img src="screenshots/Screenshot%202025-12-24%20111019.png" width="150" />
+Backend:
 
-### Profile Setup
-<img src="screenshots/Screenshot%202025-12-24%20111101.png" width="150" />
+```powershell
+docker compose up -d
+npm run prisma:migrate
+npm run prisma:generate
+npm run seed
+npx prisma validate
+npm run dev
+```
 
-### Activity Interests
-<img src="screenshots/Screenshot%202025-12-24%20111110.png" width="150" />
+Reset local backend database only:
 
-### Find Partners
-<img src="screenshots/Screenshot%202025-12-24%20111213.png" width="150" />
+```powershell
+cd backend/backend-github
+npm run db:reset:local
+```
 
-### Profile View (Public)
-<img src="screenshots/Screenshot%202025-12-24%20111224.png" width="150" />
+## Local Dev Notes
 
-### Your Profile
-<img src="screenshots/Screenshot%202025-12-24%20111244.png" width="150" />
-
-### Settings
-<img src="screenshots/Screenshot%202025-12-24%20111424.png" width="150" />
-
-### Messages
-<img src="screenshots/Screenshot%202025-12-24%20111443.png" width="150" />
-
-### Chat View
-<img src="screenshots/Screenshot%202025-12-24%20111542.png" width="150" />
-
-### Chat (Active)
-<img src="screenshots/Screenshot%202025-12-24%20111610.png" width="150" />
-
-### Find partners(Sports Filter)
-<img src="screenshots/Screenshot%202026-02-02%20153247.png" width="150" />
-
-### Find partners(Skill Level Filter)
-<img src="screenshots/Screenshot%202026-02-02%20153304.png" width="150" />
-
-### Find partners(Distance Filter)
-<img src="screenshots/Screenshot%202026-02-02%20153345.png" width="150" />
-
-### Find partners Swipe (GIF)
-<img src="screenshots/swipe.gif" width="280" />
+- Do not commit real `.env` files.
+- Backend uploads are served from `http://localhost:4000/uploads/<filename>`.
+- Backend generated Prisma client and uploaded files are ignored by git.
+- The backend reset script is intentionally limited to the local `fitfriends` database.

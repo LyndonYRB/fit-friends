@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Mail, SquareAsterisk, Phone } from "lucide-react";
+import { useAppState } from "../state/AppState";
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const { register } = useAppState();
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const onContinue = (e) => {
+  const onContinue = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -24,8 +27,19 @@ export default function Onboarding() {
     if (password.length < 6) return setError("Password must be at least 6 characters.");
     if (password !== confirmPassword) return setError("Passwords do not match.");
 
-    // UI-only: go to profile setup
-    navigate("/profile-setup");
+    try {
+      setLoading(true);
+      await register({
+        email,
+        phone: phone.replace(/\D/g, ""),
+        password,
+      });
+      navigate("/profile-setup");
+    } catch (err) {
+      setError(err.message || "Could not create your account. Try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -123,9 +137,10 @@ export default function Onboarding() {
 
             <button
               type="submit"
+              disabled={loading}
               className="mt-2 h-14 w-full rounded-full bg-[#13a4ec] text-lg font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#13a4ec]/90 focus:outline-none focus:ring-2 focus:ring-[#13a4ec]/40"
             >
-              Continue
+              {loading ? "Creating account..." : "Continue"}
             </button>
 
             <p className="pt-2 text-center text-sm text-gray-400">

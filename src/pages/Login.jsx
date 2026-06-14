@@ -3,21 +3,32 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail, Lock } from "lucide-react";
+import { useAppState } from "../state/AppState";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAppState();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     if (!email.trim()) return setError("Please enter your email.");
     if (!password.trim()) return setError("Please enter your password.");
 
-    navigate("/discover");
+    try {
+      setLoading(true);
+      await login({ email, password });
+      navigate("/discover");
+    } catch (err) {
+      setError(err.message || "Could not log in. Try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -98,9 +109,10 @@ export default function Login() {
             {/* Submit */}
             <button
               type="submit"
+              disabled={loading}
               className="mt-2 h-14 w-full rounded-full bg-[#13a4ec] text-lg font-bold text-white shadow-lg shadow-black/20 transition hover:bg-[#13a4ec]/90 focus:outline-none focus:ring-2 focus:ring-[#13a4ec]/40"
             >
-              Log In
+              {loading ? "Logging in..." : "Log In"}
             </button>
 
             {/* Sign up link */}
