@@ -36,6 +36,28 @@ Backend:
 - Reports and mutual blocking
 - Local mock fallback where needed for development resilience
 
+## Screenshots
+
+### Discover
+
+![Athlynk Discover](screenshots/Screenshot%202025-12-24%20111213.png)
+
+### Profile
+
+![Athlynk Profile](screenshots/Screenshot%202025-12-24%20111244.png)
+
+### Messages
+
+![Athlynk Messages](screenshots/Screenshot%202025-12-24%20111443.png)
+
+### Chat
+
+![Athlynk Chat](screenshots/Screenshot%202025-12-24%20111542.png)
+
+### Swipe Interaction
+
+![Athlynk Swipe Interaction](screenshots/swipe.gif)
+
 ## Frontend Setup
 
 From the project root:
